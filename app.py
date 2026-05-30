@@ -72,21 +72,21 @@ def draw_label(c, x, y, shop, url, event):
     h = 20 * mm
 
     # 店名
-    c.setFont(FONT_NAME, 6)
+    c.setFont(FONT_NAME, 5.5)
     c.setFillColor(colors.HexColor(color_top))
-    c.drawCentredString(x + w/2, y + h - 7, str(shop))
-
-    # 日付
-    c.setFont(FONT_NAME, 5)
-    c.setFillColor(colors.HexColor(color_bottom))
-    c.drawCentredString(x + w/2, y + 2, str(event))
+    c.drawCentredString(x + w/2, y + h - 3 * mm, str(shop))
 
     # QR
     qr = make_qr(url)
     qr_reader = pil_to_reader(qr)
 
     size = 11 * mm
-    c.drawImage(qr_reader, x + (w-size)/2, y + 4, size, size)
+    c.drawImage(qr_reader, x + (w-size)/2, y + 4 * mm, size, size)
+
+    # 日付
+    c.setFont(FONT_NAME, 4.2)
+    c.setFillColor(colors.HexColor(color_bottom))
+    c.drawCentredString(x + w/2, y + 1.2 * mm, str(event))
 
 def create_pdf(row):
     buffer = BytesIO()
