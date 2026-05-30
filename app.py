@@ -43,12 +43,42 @@ TOP = st.number_input("上余白(mm)", value=30.5)
 # ===== 色設定 =====
 st.subheader("🎨 デザイン設定")
 
-col1, col2 = st.columns(2)
-with col1:
-    color_top = st.color_picker("店名カラー", "#393f4c")
-    color_bottom = st.color_picker("日付カラー", "#777777")
-with col2:
-    color_qr = st.color_picker("QRカラー", "#000000")
+same_color = st.checkbox(
+    "店名・日付・QRを同じ色にする",
+    value=False
+)
+
+if same_color:
+
+    master_color = st.color_picker(
+        "共通カラー",
+        "#393f4c"
+    )
+
+    color_top = master_color
+    color_bottom = master_color
+    color_qr = master_color
+
+else:
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        color_top = st.color_picker(
+            "店名カラー",
+            "#393f4c"
+        )
+
+        color_bottom = st.color_picker(
+            "日付カラー",
+            "#777777"
+        )
+
+    with col2:
+        color_qr = st.color_picker(
+            "QRカラー",
+            "#000000"
+        )
 
 # ===== ファイル読み込み =====
 st.subheader("📂 データアップロード")
@@ -88,23 +118,34 @@ def draw_label(c, x, y, shop, url, event):
     c.setFillColor(colors.HexColor(color_bottom))
     c.drawCentredString(x + w/2, y + 1.2 * mm, str(event))
 
-def create_pdf(row):
+def create_merged_pdf(df):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
 
-    for i in range(70):
-        col = i % COLS
-        row_i = i // COLS
+    for _, row in df.iterrows():
 
-        x = (LEFT + col * (LABEL_W + 4)) * mm
-        y = (297 - (TOP + row_i * (LABEL_H + 4) + LABEL_H)) * mm
+        for i in range(70):
+            col = i % COLS
+            row_i = i // COLS
 
-        draw_label(c, x, y, row["店名"], row["QRリンク"], row["開催名年月"])
+            x = (LEFT + col * (LABEL_W + 4)) * mm
+            y = (297 - (TOP + row_i * (LABEL_H + 4) + LABEL_H)) * mm
+
+            draw_label(
+                c,
+                x,
+                y,
+                row["店名"],
+                row["QRリンク"],
+                row["開催名年月"]
+            )
+
+        c.showPage()
 
     c.save()
     buffer.seek(0)
     return buffer
-
+  
 # ===== メイン処理 =====
 if file:
     if file.name.endswith(".csv"):
@@ -122,31 +163,25 @@ if file:
 
     if st.button("🚀 生成する", use_container_width=True):
 
-        if mode == "1店舗ずつPDF":
-            for i, row in df.iterrows():
-                pdf = create_pdf(row)
-                filename = f"{row.get('店舗ID',i)}_{row['店名']}.pdf"
+if mode == "1店舗ずつPDF":
+    for i, row in df.iterrows():
+        pdf = create_pdf(row)
+        filename = f"{row.get('店舗ID', i)}_{row['店名']}.pdf"
 
-                st.download_button(
-                    f"{row['店名']} をダウンロード",
-                    data=pdf,
-                    file_name=filename,
-                    mime="application/pdf"
-                )
+        st.download_button(
+            label=f"{row['店名']} をダウンロード",
+            data=pdf.getvalue(),
+            file_name=filename,
+            mime="application/pdf",
+            key=f"download_{i}"
+        )
+        
+else:
+    pdf = create_merged_pdf(df)
 
-        else:
-            zip_buffer = BytesIO()
-            with zipfile.ZipFile(zip_buffer, "w") as z:
-                for i, row in df.iterrows():
-                    pdf = create_pdf(row)
-                    filename = f"{row.get('店舗ID',i)}_{row['店名']}.pdf"
-                    z.writestr(filename, pdf.read())
-
-            zip_buffer.seek(0)
-
-            st.download_button(
-                "📦 ZIPダウンロード",
-                data=zip_buffer,
-                file_name="labels.zip",
-                mime="application/zip"
-            )
+    st.download_button(
+        "📄 まとめPDFダウンロード",
+        data=pdf.getvalue(),
+        file_name="all_labels.pdf",
+        mime="application/pdf"
+    )       
