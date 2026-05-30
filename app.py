@@ -16,7 +16,7 @@ from reportlab.lib import colors
 # ===== UI設定 =====
 st.set_page_config(page_title="QRシール生成", layout="centered")
 
-st.title("📱 QRシール生成ツール")
+st.title("📱 鉄輪遊市QRシール生成ツール")
 st.caption("1店舗70面 / スマホ対応")
 
 
