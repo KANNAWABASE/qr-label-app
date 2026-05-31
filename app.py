@@ -18,7 +18,7 @@ from reportlab.lib import colors
 st.set_page_config(page_title="QRシール生成", layout="centered")
 
 st.title("📱 QRシール生成ツール")
-st.caption("1店舗70面 / PDF直接 + 予備ZIP対応")
+st.caption("1店舗70面 / PDF直接 + 店舗別ZIP対応")
 
 
 # ===== フォント =====
@@ -164,17 +164,6 @@ def create_merged_pdf(df):
     return buffer.getvalue()
 
 
-def create_zip_with_file(file_bytes, file_name):
-    zip_buffer = BytesIO()
-    zip_name = file_name.replace(".pdf", ".zip")
-
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr(file_name, file_bytes)
-
-    zip_buffer.seek(0)
-    return zip_buffer.getvalue(), zip_name
-
-
 def create_zip_with_multiple_files(files):
     zip_buffer = BytesIO()
 
@@ -212,6 +201,8 @@ if file:
 
     if st.button("🚀 生成する", use_container_width=True):
 
+        event_name = safe_filename(df.iloc[0]["開催名年月"])
+
         if mode == "1店舗ずつPDF":
             single_pdfs = []
 
@@ -220,7 +211,6 @@ if file:
 
                 store_id = row.get("店舗ID", i)
                 shop_name = safe_filename(row["店名"])
-                event_name = safe_filename(row["開催名年月"])
 
                 filename = f"{event_name}_{store_id}_{shop_name}.pdf"
 
@@ -230,34 +220,21 @@ if file:
                     "data": pdf_bytes
                 })
 
-            event_name = safe_filename(df.iloc[0]["開催名年月"])
-            zip_filename = f"{event_name}_店舗別PDF一式.zip"
             zip_bytes = create_zip_with_multiple_files(single_pdfs)
 
             st.session_state["single_pdfs"] = single_pdfs
             st.session_state["single_zip"] = zip_bytes
-            st.session_state["single_zip_filename"] = zip_filename
+            st.session_state["single_zip_filename"] = "qr_labels_by_shop.zip"
 
             st.session_state.pop("merged_pdf", None)
             st.session_state.pop("merged_filename", None)
-            st.session_state.pop("merged_zip", None)
-            st.session_state.pop("merged_zip_filename", None)
 
         else:
             pdf_bytes = create_merged_pdf(df)
-
-            event_name = safe_filename(df.iloc[0]["開催名年月"])
-            pdf_filename = f"{event_name}_まとめ.pdf"
-
-            zip_bytes, zip_filename = create_zip_with_file(
-                pdf_bytes,
-                pdf_filename
-            )
+            pdf_filename = f"{event_name}_まとめPDF.pdf"
 
             st.session_state["merged_pdf"] = pdf_bytes
             st.session_state["merged_filename"] = pdf_filename
-            st.session_state["merged_zip"] = zip_bytes
-            st.session_state["merged_zip_filename"] = zip_filename
 
             st.session_state.pop("single_pdfs", None)
             st.session_state.pop("single_zip", None)
@@ -280,14 +257,15 @@ if file:
             )
 
         st.download_button(
-            label="📦 予備：店舗別PDFをZIPでまとめてダウンロード",
+            label="📦 スマホ用：店舗別PDFをZIPでまとめてダウンロード",
             data=st.session_state["single_zip"],
             file_name=st.session_state["single_zip_filename"],
-            mime="application/zip",
+            mime="application/octet-stream",
             key="single_zip_download",
-            use_container_width=True,
-            on_click="ignore"
+            use_container_width=True
         )
+
+        st.caption("Android Firefoxでは、この店舗別ZIPが一番安定します。")
 
 
     # ===== まとめPDFダウンロード =====
@@ -295,7 +273,7 @@ if file:
         st.subheader("⬇️ まとめPDFダウンロード")
 
         st.download_button(
-            label="📄 PDFを直接ダウンロード",
+            label="📄 まとめPDFを直接ダウンロード",
             data=st.session_state["merged_pdf"],
             file_name=st.session_state["merged_filename"],
             mime="application/pdf",
@@ -304,17 +282,7 @@ if file:
             on_click="ignore"
         )
 
-        st.download_button(
-            label="📦 予備：ZIPでダウンロード",
-            data=st.session_state["merged_zip"],
-            file_name=st.session_state["merged_zip_filename"],
-            mime="application/zip",
-            key="merged_zip_download",
-            use_container_width=True,
-            on_click="ignore"
-        )
-
-        st.caption("PDFで保存できないスマホ・ブラウザでは、ZIPを試してください。")
+        st.caption("まとめPDFが保存できないスマホでは、出力方法を「1店舗ずつPDF」にして店舗別ZIPを使ってください。")
 
 else:
     st.info("CSVまたはExcelをアップロードしてください。")
