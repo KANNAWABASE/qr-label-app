@@ -153,7 +153,7 @@ def save_static_pdf(pdf_bytes, filename):
     with open(file_path, "wb") as f:
         f.write(pdf_bytes)
 
-    return f"app/static/{unique_name}"
+    return f"/app/static/{unique_name}"
 
 
 if file:
