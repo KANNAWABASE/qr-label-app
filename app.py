@@ -16,7 +16,7 @@ from reportlab.lib import colors
 # ===== UI設定 =====
 st.set_page_config(page_title="QRシール生成", layout="centered")
 
-st.title("📱 鉄輪遊市QRシール生成ツール")
+st.title("📱 QRシール生成ツール")
 st.caption("1店舗70面 / スマホ対応")
 
 
@@ -66,6 +66,13 @@ st.subheader("📂 データアップロード")
 file = st.file_uploader("CSV または Excel", type=["csv", "xlsx"])
 
 
+def safe_filename(text):
+    text = str(text).strip()
+    for ch in ['\\', '/', ':', '*', '?', '"', '<', '>', '|']:
+        text = text.replace(ch, "_")
+    return text
+
+
 def make_qr(data):
     qr = qrcode.QRCode(box_size=6, border=1)
     qr.add_data(str(data))
@@ -97,7 +104,7 @@ def draw_label(c, x, y, shop, url, event):
     size = 11 * mm
     c.drawImage(qr_reader, x + (w - size) / 2, y + 4 * mm, size, size)
 
-    # 日付
+    # 開催名年月
     c.setFont(FONT_NAME, 4.2)
     c.setFillColor(colors.HexColor(color_bottom))
     c.drawCentredString(x + w / 2, y + 1.2 * mm, str(event))
@@ -180,24 +187,64 @@ if file:
     if st.button("🚀 生成する", use_container_width=True):
 
         if mode == "1店舗ずつPDF":
+            st.session_state["single_pdfs"] = []
+
             for i, row in df.iterrows():
                 pdf = create_pdf(row)
-                filename = f"{row.get('店舗ID', i)}_{row['店名']}.pdf"
 
-                st.download_button(
-                    label=f"{row['店名']} をダウンロード",
-                    data=pdf.getvalue(),
-                    file_name=filename,
-                    mime="application/pdf",
-                    key=f"download_{i}"
+                store_id = row.get("店舗ID", i)
+                shop_name = safe_filename(row["店名"])
+                event_name = safe_filename(row["開催名年月"])
+
+                filename = f"{event_name}_{store_id}_{shop_name}.pdf"
+
+                st.session_state["single_pdfs"].append(
+                    {
+                        "label": f"{row['店名']} をダウンロード",
+                        "filename": filename,
+                        "data": pdf.getvalue()
+                    }
                 )
+
+            st.session_state.pop("merged_pdf", None)
+            st.session_state.pop("merged_filename", None)
 
         else:
             pdf = create_merged_pdf(df)
 
+            event_name = safe_filename(df.iloc[0]["開催名年月"])
+            filename = f"{event_name}_まとめPDF.pdf"
+
+            st.session_state["merged_pdf"] = pdf.getvalue()
+            st.session_state["merged_filename"] = filename
+
+            st.session_state.pop("single_pdfs", None)
+
+
+    # ===== ダウンロードボタン表示 =====
+    if "single_pdfs" in st.session_state:
+        st.subheader("⬇️ 1店舗ずつダウンロード")
+
+        for i, item in enumerate(st.session_state["single_pdfs"]):
             st.download_button(
-                "📄 まとめPDFダウンロード",
-                data=pdf.getvalue(),
-                file_name="all_labels.pdf",
-                mime="application/pdf"
+                label=item["label"],
+                data=item["data"],
+                file_name=item["filename"],
+                mime="application/pdf",
+                key=f"single_download_{i}",
+                use_container_width=True
             )
+
+    if "merged_pdf" in st.session_state:
+        st.subheader("⬇️ まとめPDFダウンロード")
+
+        st.download_button(
+            label="📄 まとめPDFをダウンロード",
+            data=st.session_state["merged_pdf"],
+            file_name=st.session_state["merged_filename"],
+            mime="application/pdf",
+            key="merged_download",
+            use_container_width=True
+        )
+else:
+    st.info("CSVまたはExcelをアップロードしてください。")
