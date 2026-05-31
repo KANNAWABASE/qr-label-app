@@ -247,7 +247,7 @@ if file:
             pdf_bytes = create_merged_pdf(df)
 
             event_name = safe_filename(df.iloc[0]["開催名年月"])
-            pdf_filename = f"{event_name}_まとめPDF.pdf"
+            pdf_filename = f"{event_name}_まとめ.pdf"
 
             zip_bytes, zip_filename = create_zip_with_file(
                 pdf_bytes,
